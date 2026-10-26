@@ -310,7 +310,26 @@ if (!SpeechRecognition) {
     }
 
     function showWakeConfirmation(remainder) {
-        dekoAwake = true;
+    dekoAwake = true;
+    confirmationVisible = true;
+    wakeBuffer = "";
+    commandText = "";
+
+    setState("listening");
+
+    if (remainder) {
+        commandText = remainder;
+        speechText.textContent =
+            "Ja Erik, jag lyssnar. " + remainder;
+    } else {
+        speechText.textContent =
+            "Ja Erik, jag lyssnar...";
+    }
+
+    setTimeout(() => {
+        confirmationVisible = false;
+    }, 2000);
+}        dekoAwake = true;
         confirmationVisible = true;
         wakeBuffer = "";
         commandText = "";
