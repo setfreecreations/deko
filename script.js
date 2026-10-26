@@ -11,15 +11,15 @@ let interactionTimer;
 
 let microphoneStream = null;
 let audioContext = null;
-let analyser = null;
 
 let dekoAwake = false;
-let commandText = "";
-let wakeBuffer = "";
 let recognitionShouldRun = false;
+let wakeBuffer = "";
+let commandText = "";
+let confirmationVisible = false;
 
 
-/* ---------------- ÖGONTILLSTÅND ---------------- */
+/* ÖGONTILLSTÅND */
 
 function resetEyes() {
     eyes.forEach(eye => {
@@ -103,7 +103,7 @@ stateButtons.forEach(button => {
 });
 
 
-/* ---------------- AUTOMATISK BLINKNING ---------------- */
+/* AUTOMATISK BLINKNING */
 
 function blink() {
     eyes.forEach(eye => {
@@ -127,7 +127,7 @@ function scheduleBlink() {
 }
 
 
-/* ---------------- NATURLIGA BLICKRÖRELSER ---------------- */
+/* NATURLIGA BLICKRÖRELSER */
 
 function naturalLook() {
     if (userIsInteracting || dekoAwake) {
@@ -162,7 +162,7 @@ function scheduleLook() {
 }
 
 
-/* ---------------- MUS OCH FINGER ---------------- */
+/* MUS OCH FINGER */
 
 function followPoint(x, y) {
     userIsInteracting = true;
@@ -212,9 +212,9 @@ document.addEventListener("touchmove", event => {
 }, { passive: true });
 
 
-/* ---------------- MIKROFON OCH LJUDNIVÅ ---------------- */
+/* MIKROFON OCH LJUDREAKTION */
 
-async function startMicrophone() {
+async function startMicrophoneLevel() {
     if (microphoneStream) {
         return;
     }
@@ -229,7 +229,7 @@ async function startMicrophone() {
     const source =
         audioContext.createMediaStreamSource(microphoneStream);
 
-    analyser = audioContext.createAnalyser();
+    const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
 
     source.connect(analyser);
@@ -262,7 +262,7 @@ async function startMicrophone() {
 
 micButton.addEventListener("click", async () => {
     try {
-        await startMicrophone();
+        await startMicrophoneLevel();
 
         setState("listening");
         micButton.textContent = "🎤 Lyssnar";
@@ -275,7 +275,7 @@ micButton.addEventListener("click", async () => {
 });
 
 
-/* ---------------- TALIGENKÄNNING ---------------- */
+/* TALIGENKÄNNING */
 
 const SpeechRecognition =
     window.SpeechRecognition ||
@@ -292,129 +292,35 @@ if (!SpeechRecognition) {
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    speechButton.addEventListener("click", () => {
-    dekoAwake = false;
-    commandText = "";
-    wakeBuffer = "";
-    recognitionShouldRun = true;
-
-    speechText.textContent = "Väntar på: Hej Deko";
-    setState("neutral");
-
-    try {
-        recognition.start();
-    } catch (error) {
-        console.log(error);
+    function normalizeText(text) {
+        return text
+            .toLowerCase()
+            .replace(/[.,!?]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
     }
-});
 
-    recognition.onresult = event => {
-        let newestText = "";
-        let finalText = "";
+    function removeWakePhrase(text) {
+        return text
+            .replace(/hej\s+deko/i, "")
+            .replace(/hej\s+deco/i, "")
+            .replace(/hej\s+dekko/i, "")
+            .replace(/^[,.\s]+/, "")
+            .trim();
+    }
 
-        for (
-            let i = event.resultIndex;
-            i < event.results.length;
-            i++
-        ) {
-            const transcript =
-                event.results[i][0].transcript;
+    function showWakeConfirmation(remainder) {
+        dekoAwake = true;
+        confirmationVisible = true;
+        wakeBuffer = "";
+        commandText = "";
 
-            newestText += transcript + " ";
+        setState("listening");
+        speechText.textContent = "Ja Erik, jag lyssnar...";
 
-            if (event.results[i].isFinal) {
-                finalText += transcript + " ";
-            }
-        }
+        setTimeout(() => {
+            confirmationVisible = false;
 
-        const normalizedText =
-            newestText.toLowerCase().trim();
-
-        if (!dekoAwake) {
-            wakeBuffer =
-                (wakeBuffer + " " + normalizedText)
-                    .toLowerCase()
-                    .replace(/[.,!?]/g, "")
-                    .replace(/\s+/g, " ")
-                    .trim()
-                    .slice(-100);
-
-            speechText.textContent =
-                "Väntar på: Hej Deko";
-
-            const wakePhraseFound =
-                wakeBuffer.includes("hej deko") ||
-                wakeBuffer.includes("hej deco") ||
-                wakeBuffer.includes("hej dekko");
-
-            if (wakePhraseFound) {
-                dekoAwake = true;
-                commandText = "";
-                wakeBuffer = "";
-
-                setState("listening");
-
+            if (remainder) {
+                commandText = remainder;
                 speechText.textContent =
-                    "Ja Erik, jag lyssnar...";
-            }
-
-            return;
-        }
-
-        if (finalText.trim()) {
-            commandText =
-                (commandText + " " + finalText)
-                    .replace(/\s+/g, " ")
-                    .trim();
-
-            speechText.textContent = commandText;
-        } else if (newestText.trim()) {
-            const preview =
-                (commandText + " " + newestText)
-                    .replace(/\s+/g, " ")
-                    .trim();
-
-            speechText.textContent = preview;
-        }
-    };
-
-    recognition.onend = () => {
-        if (!recognitionShouldRun) {
-            return;
-        }
-
-        try {
-            recognition.start();
-        } catch (error) {
-            console.log(error);
-        }
-    };
-
-    recognition.onerror = event => {
-        console.error(event.error);
-
-        if (event.error === "no-speech") {
-            speechText.textContent = dekoAwake
-                ? "Ja Erik, jag lyssnar..."
-                : "Väntar på: Hej Deko";
-
-            return;
-        }
-
-        if (event.error === "aborted") {
-            return;
-        }
-
-        speechText.textContent =
-            "Fel: " + event.error;
-
-        setState("error");
-    };
-}
-
-
-/* ---------------- START ---------------- */
-
-setState("neutral");
-scheduleBlink();
-scheduleLook();
