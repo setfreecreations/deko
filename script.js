@@ -1,24 +1,16 @@
 const eyes = document.querySelectorAll(".eye");
 const pupils = document.querySelectorAll(".pupil");
 const stateButtons = document.querySelectorAll("button[data-state]");
-
 const micButton = document.getElementById("micButton");
 const speechButton = document.getElementById("speechButton");
 const speechText = document.getElementById("speechText");
 
 let userIsInteracting = false;
 let interactionTimer = null;
-
 let microphoneStream = null;
-let audioContext = null;
-
 let dekoAwake = false;
-let recognitionShouldRun = false;
-let confirmationActive = false;
-let pendingCommand = "";
-
-
-/* ÖGONENS TILLSTÅND */
+let recognitionRunning = false;
+let lastTranscript = "";
 
 function resetEyes() {
     eyes.forEach(eye => {
@@ -48,90 +40,55 @@ function setState(state) {
             pupil.style.left = "34px";
             pupil.style.top = "34px";
         });
-    }
-
-    if (state === "thinking") {
+    } else if (state === "thinking") {
         pupils.forEach(pupil => {
             pupil.style.left = "58px";
             pupil.style.top = "18px";
         });
-    }
-
-    if (state === "searching") {
-        pupils.forEach(pupil => {
-            pupil.style.left = "18px";
-        });
-    }
-
-    if (state === "happy") {
+    } else if (state === "searching") {
+        pupils.forEach(pupil => pupil.style.left = "18px");
+    } else if (state === "happy") {
         eyes.forEach(eye => {
             eye.style.height = "65px";
             eye.style.borderRadius = "0 0 100px 100px";
         });
-    }
-
-    if (state === "surprised") {
+    } else if (state === "surprised") {
         eyes.forEach(eye => {
             eye.style.width = "140px";
             eye.style.height = "140px";
         });
-    }
-
-    if (state === "uncertain") {
-        eyes[0].style.height = "75px";
-    }
-
-    if (state === "sleep") {
+    } else if (state === "uncertain") {
+        if (eyes[0]) eyes[0].style.height = "75px";
+    } else if (state === "sleep") {
         eyes.forEach(eye => {
             eye.style.height = "8px";
             eye.style.borderRadius = "10px";
         });
-    }
-
-    if (state === "error") {
-        eyes.forEach(eye => {
-            eye.style.background = "#ff3b30";
-        });
+    } else if (state === "error") {
+        eyes.forEach(eye => eye.style.background = "#ff3b30");
     }
 }
 
 stateButtons.forEach(button => {
-    button.addEventListener("click", () => {
-        setState(button.dataset.state);
-    });
+    button.addEventListener("click", () => setState(button.dataset.state));
 });
 
-
-/* AUTOMATISK BLINKNING */
-
 function blink() {
-    eyes.forEach(eye => {
-        eye.style.transform = "scaleY(0.08)";
-    });
-
+    eyes.forEach(eye => eye.style.transform = "scaleY(0.08)");
     setTimeout(() => {
-        eyes.forEach(eye => {
-            eye.style.transform = "scaleY(1)";
-        });
+        eyes.forEach(eye => eye.style.transform = "scaleY(1)");
     }, 140);
 }
 
 function scheduleBlink() {
-    const delay = 3000 + Math.random() * 5000;
-
     setTimeout(() => {
         blink();
         scheduleBlink();
-    }, delay);
+    }, 3000 + Math.random() * 5000);
 }
 
-
-/* NATURLIGA BLICKRÖRELSER */
-
 function naturalLook() {
-    if (userIsInteracting || dekoAwake) {
-        return;
-    }
+    if (userIsInteracting || dekoAwake) return;
 
     const x = 25 + Math.random() * 28;
     const y = 25 + Math.random() * 28;
@@ -152,273 +109,154 @@ function naturalLook() {
 }
 
 function scheduleLook() {
-    const delay = 2000 + Math.random() * 4000;
-
     setTimeout(() => {
         naturalLook();
         scheduleLook();
-    }, delay);
+    }, 2000 + Math.random() * 4000);
 }
-
-
-/* MUS OCH FINGER */
 
 function followPoint(x, y) {
     userIsInteracting = true;
 
     pupils.forEach((pupil, index) => {
         const eye = eyes[index];
+        if (!eye) return;
+
         const rect = eye.getBoundingClientRect();
+        const dx = x - (rect.left + rect.width / 2);
+        const dy = y - (rect.top + rect.height / 2);
+        const distance = Math.hypot(dx, dy) || 1;
+        const amount = Math.min(distance / 8, 25);
 
-        const eyeCenterX = rect.left + rect.width / 2;
-        const eyeCenterY = rect.top + rect.height / 2;
-
-        const dx = x - eyeCenterX;
-        const dy = y - eyeCenterY;
-
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const maxMove = 25;
-
-        const moveX = distance > 0
-            ? (dx / distance) * Math.min(distance / 8, maxMove)
-            : 0;
-
-        const moveY = distance > 0
-            ? (dy / distance) * Math.min(distance / 8, maxMove)
-            : 0;
-
-        pupil.style.left = (39 + moveX) + "px";
-        pupil.style.top = (39 + moveY) + "px";
+        pupil.style.left = (39 + dx / distance * amount) + "px";
+        pupil.style.top = (39 + dy / distance * amount) + "px";
     });
 
     clearTimeout(interactionTimer);
-
-    interactionTimer = setTimeout(() => {
-        userIsInteracting = false;
-    }, 1500);
+    interactionTimer = setTimeout(() => userIsInteracting = false, 1500);
 }
 
-document.addEventListener("mousemove", event => {
-    followPoint(event.clientX, event.clientY);
-});
-
+document.addEventListener("mousemove", event => followPoint(event.clientX, event.clientY));
 document.addEventListener("touchmove", event => {
     const touch = event.touches[0];
-
-    if (touch) {
-        followPoint(touch.clientX, touch.clientY);
-    }
+    if (touch) followPoint(touch.clientX, touch.clientY);
 }, { passive: true });
 
-
-/* SEPARAT TEST AV MIKROFONENS LJUDNIVÅ */
-
 async function startMicrophoneLevel() {
-    if (microphoneStream) {
-        return;
-    }
+    if (microphoneStream) return;
 
-    microphoneStream =
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    audioContext = new (
-        window.AudioContext || window.webkitAudioContext
-    )();
-
-    const source =
-        audioContext.createMediaStreamSource(microphoneStream);
-
+    microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContextClass();
+    const source = audioContext.createMediaStreamSource(microphoneStream);
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
-
     source.connect(analyser);
 
-    const data =
-        new Uint8Array(analyser.frequencyBinCount);
+    const data = new Uint8Array(analyser.frequencyBinCount);
 
     function detectVoice() {
         analyser.getByteFrequencyData(data);
-
-        const level =
-            data.reduce((sum, value) => sum + value, 0) /
-            data.length;
-
-        if (level > 15) {
-            pupils.forEach(pupil => {
-                pupil.style.transform = "scale(1.18)";
-            });
-        } else {
-            pupils.forEach(pupil => {
-                pupil.style.transform = "scale(1)";
-            });
-        }
-
+        const level = data.reduce((sum, value) => sum + value, 0) / data.length;
+        pupils.forEach(pupil => {
+            pupil.style.transform = level > 15 ? "scale(1.18)" : "scale(1)";
+        });
         requestAnimationFrame(detectVoice);
     }
 
     detectVoice();
 }
 
-micButton.addEventListener("click", async () => {
-    try {
-        await startMicrophoneLevel();
+if (micButton) {
+    micButton.addEventListener("click", async () => {
+        try {
+            await startMicrophoneLevel();
+            setState("listening");
+            micButton.textContent = "🎤 Lyssnar";
+        } catch (error) {
+            console.error(error);
+            micButton.textContent = "Mikrofon nekad";
+            setState("error");
+        }
+    });
+}
 
-        setState("listening");
-        micButton.textContent = "🎤 Lyssnar";
-    } catch (error) {
-        console.error(error);
+const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        micButton.textContent = "Mikrofon nekad";
-        setState("error");
-    }
-});
-
-
-/* TALIGENKÄNNING OCH HEJ DEKO */
-
-const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-if (!SpeechRecognition) {
-    speechButton.disabled = true;
-    speechText.textContent =
-        "Taligenkänning stöds inte i webbläsaren.";
+if (!SpeechRecognitionClass) {
+    if (speechButton) speechButton.disabled = true;
+    if (speechText) speechText.textContent = "Taligenkänning stöds inte i webbläsaren.";
 } else {
-    const recognition = new SpeechRecognition();
-
+    const recognition = new SpeechRecognitionClass();
     recognition.lang = "sv-SE";
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    function normalizeText(text) {
-        return text
-            .toLowerCase()
-            .replace(/[.,!?]/g, "")
-            .replace(/\s+/g, " ")
-            .trim();
+    function normalize(text) {
+        return text.toLowerCase().replace(/[.,!?]/g, "").replace(/\s+/g, " ").trim();
     }
 
-    function findWakePhrase(text) {
-        return text.match(/hej\s+(deko|deco|dekko)/i);
+    function hasWakePhrase(text) {
+        return /hej\s+(deko|deco|dekko)/i.test(text);
     }
 
-    function textAfterWakePhrase(text) {
-        const match = findWakePhrase(text);
-
-        if (!match) {
-            return "";
-        }
-
-        return text
-            .slice(match.index + match[0].length)
-            .replace(/^[,.\s!?]+/, "")
-            .trim();
+    function removeWakePhrase(text) {
+        return text.replace(/.*?hej\s+(deko|deco|dekko)[,\.\s!?]*/i, "").trim();
     }
 
-    function getFullTranscript(event) {
-        let text = "";
-
-        for (let i = 0; i < event.results.length; i++) {
-            text += event.results[i][0].transcript + " ";
-        }
-
-        return text.replace(/\s+/g, " ").trim();
-    }
-
-    function wakeDeko(remainder) {
-        dekoAwake = true;
-        confirmationActive = true;
-        pendingCommand = remainder;
-
-        setState("listening");
-        speechText.textContent = "Ja Erik, jag lyssnar...";
-
-        setTimeout(() => {
-            confirmationActive = false;
-
-            if (pendingCommand) {
-                speechText.textContent = pendingCommand;
-            } else {
-                speechText.textContent = "Jag lyssnar...";
+    if (speechButton) {
+        speechButton.addEventListener("click", () => {
+            if (microphoneStream) {
+                microphoneStream.getTracks().forEach(track => track.stop());
+                microphoneStream = null;
             }
-        }, 2000);
+
+            dekoAwake = false;
+            lastTranscript = "";
+            recognitionRunning = true;
+            setState("neutral");
+            speechText.textContent = "Väntar på: Hej Deko";
+
+            try {
+                recognition.start();
+            } catch (error) {
+                console.log(error);
+            }
+        });
     }
-
-    speechButton.addEventListener("click", () => {
-        if (microphoneStream) {
-            microphoneStream
-                .getTracks()
-                .forEach(track => track.stop());
-
-            microphoneStream = null;
-        }
-
-        dekoAwake = false;
-        confirmationActive = false;
-        pendingCommand = "";
-        recognitionShouldRun = true;
-
-        speechText.textContent =
-            "Väntar på: Hej Deko";
-
-        setState("neutral");
-
-        try {
-            recognition.start();
-        } catch (error) {
-            console.log(error);
-        }
-    });
 
     recognition.onresult = event => {
-        const fullTranscript =
-            getFullTranscript(event);
+        let fullText = "";
+        for (let i = 0; i < event.results.length; i++) {
+            fullText += event.results[i][0].transcript + " ";
+        }
+        fullText = fullText.replace(/\s+/g, " ").trim();
+        if (!fullText || fullText === lastTranscript) return;
+        lastTranscript = fullText;
 
         if (!dekoAwake) {
-            const normalizedTranscript =
-                normalizeText(fullTranscript);
-
-            const wakePhrase =
-                findWakePhrase(normalizedTranscript);
-
-            if (!wakePhrase) {
-                speechText.textContent =
-                    "Väntar på: Hej Deko";
-
+            if (!hasWakePhrase(normalize(fullText))) {
+                speechText.textContent = "Väntar på: Hej Deko";
                 return;
             }
 
-            const remainder =
-                textAfterWakePhrase(fullTranscript);
-
-            wakeDeko(remainder);
+            dekoAwake = true;
+            setState("listening");
+            const command = removeWakePhrase(fullText);
+            speechText.textContent = command
+                ? "Ja Erik, jag lyssnar. " + command
+                : "Ja Erik, jag lyssnar...";
             return;
         }
 
-        const command =
-            textAfterWakePhrase(fullTranscript);
-
+        const command = removeWakePhrase(fullText);
         if (command) {
-            pendingCommand = command;
-        }
-
-        if (confirmationActive) {
-            return;
-        }
-
-        if (pendingCommand) {
-            speechText.textContent = pendingCommand;
-        } else {
-            speechText.textContent = "Jag lyssnar...";
+            speechText.textContent = "Ja Erik, jag lyssnar. " + command;
         }
     };
 
     recognition.onend = () => {
-        if (!recognitionShouldRun) {
-            return;
-        }
-
+        if (!recognitionRunning) return;
         setTimeout(() => {
             try {
                 recognition.start();
@@ -430,23 +268,11 @@ if (!SpeechRecognition) {
 
     recognition.onerror = event => {
         console.error(event.error);
-
-        if (
-            event.error === "no-speech" ||
-            event.error === "aborted"
-        ) {
-            return;
-        }
-
-        speechText.textContent =
-            "Fel: " + event.error;
-
+        if (event.error === "no-speech" || event.error === "aborted") return;
+        speechText.textContent = "Fel: " + event.error;
         setState("error");
     };
 }
-
-
-/* STARTA DEKO */
 
 setState("neutral");
 scheduleBlink();
