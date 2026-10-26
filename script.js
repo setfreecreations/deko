@@ -241,6 +241,8 @@ if (!SpeechRecognition) {
     speechText.textContent = "Taligenkänning stöds inte i webbläsaren.";
 } else {
     const recognition = new SpeechRecognition();
+	let dekoAwake = false;
+	let commandText = "";
 
     recognition.lang = "sv-SE";
     recognition.continuous = true;
@@ -253,14 +255,31 @@ if (!SpeechRecognition) {
     });
 
     recognition.onresult = event => {
-        let text = "";
+    let text = "";
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            text += event.results[i][0].transcript;
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+        text += event.results[i][0].transcript;
+    }
+
+    const normalizedText = text.toLowerCase().trim();
+
+    if (!dekoAwake) {
+        speechText.textContent = "Väntar på: Hej Deko";
+
+        if (normalizedText.includes("hej deko")) {
+            dekoAwake = true;
+            commandText = "";
+
+            setState("listening");
+            speechText.textContent = "Ja Erik, jag lyssnar...";
         }
 
-        speechText.textContent = text;
-    };
+        return;
+    }
+
+    commandText += " " + text;
+    speechText.textContent = commandText.trim();
+};
 
     recognition.onend = () => {
     try {
