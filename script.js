@@ -7,19 +7,18 @@ const speechButton = document.getElementById("speechButton");
 const speechText = document.getElementById("speechText");
 
 let userIsInteracting = false;
-let interactionTimer;
+let interactionTimer = null;
 
 let microphoneStream = null;
 let audioContext = null;
 
 let dekoAwake = false;
 let recognitionShouldRun = false;
-let wakeBuffer = "";
-let commandText = "";
-let confirmationVisible = false;
+let confirmationActive = false;
+let pendingCommand = "";
 
 
-/* ÖGONTILLSTÅND */
+/* ÖGONENS TILLSTÅND */
 
 function resetEyes() {
     eyes.forEach(eye => {
@@ -212,7 +211,7 @@ document.addEventListener("touchmove", event => {
 }, { passive: true });
 
 
-/* MIKROFON OCH LJUDREAKTION */
+/* SEPARAT TEST AV MIKROFONENS LJUDNIVÅ */
 
 async function startMicrophoneLevel() {
     if (microphoneStream) {
@@ -275,7 +274,7 @@ micButton.addEventListener("click", async () => {
 });
 
 
-/* TALIGENKÄNNING */
+/* TALIGENKÄNNING OCH HEJ DEKO */
 
 const SpeechRecognition =
     window.SpeechRecognition ||
@@ -300,46 +299,155 @@ if (!SpeechRecognition) {
             .trim();
     }
 
-    function removeWakePhrase(text) {
+    function findWakePhrase(text) {
+        return text.match(/hej\s+(deko|deco|dekko)/i);
+    }
+
+    function textAfterWakePhrase(text) {
+        const match = findWakePhrase(text);
+
+        if (!match) {
+            return "";
+        }
+
         return text
-            .replace(/hej\s+deko/i, "")
-            .replace(/hej\s+deco/i, "")
-            .replace(/hej\s+dekko/i, "")
-            .replace(/^[,.\s]+/, "")
+            .slice(match.index + match[0].length)
+            .replace(/^[,.\s!?]+/, "")
             .trim();
     }
 
-    function showWakeConfirmation(remainder) {
-    dekoAwake = true;
-    confirmationVisible = true;
-    wakeBuffer = "";
-    commandText = "";
+    function getFullTranscript(event) {
+        let text = "";
 
-    setState("listening");
+        for (let i = 0; i < event.results.length; i++) {
+            text += event.results[i][0].transcript + " ";
+        }
 
-    if (remainder) {
-        commandText = remainder;
-        speechText.textContent =
-            "Ja Erik, jag lyssnar. " + remainder;
-    } else {
-        speechText.textContent =
-            "Ja Erik, jag lyssnar...";
+        return text.replace(/\s+/g, " ").trim();
     }
 
-    setTimeout(() => {
-        confirmationVisible = false;
-    }, 2000);
-}        dekoAwake = true;
-        confirmationVisible = true;
-        wakeBuffer = "";
-        commandText = "";
+    function wakeDeko(remainder) {
+        dekoAwake = true;
+        confirmationActive = true;
+        pendingCommand = remainder;
 
         setState("listening");
         speechText.textContent = "Ja Erik, jag lyssnar...";
 
         setTimeout(() => {
-            confirmationVisible = false;
+            confirmationActive = false;
 
-            if (remainder) {
-                commandText = remainder;
+            if (pendingCommand) {
+                speechText.textContent = pendingCommand;
+            } else {
+                speechText.textContent = "Jag lyssnar...";
+            }
+        }, 2000);
+    }
+
+    speechButton.addEventListener("click", () => {
+        if (microphoneStream) {
+            microphoneStream
+                .getTracks()
+                .forEach(track => track.stop());
+
+            microphoneStream = null;
+        }
+
+        dekoAwake = false;
+        confirmationActive = false;
+        pendingCommand = "";
+        recognitionShouldRun = true;
+
+        speechText.textContent =
+            "Väntar på: Hej Deko";
+
+        setState("neutral");
+
+        try {
+            recognition.start();
+        } catch (error) {
+            console.log(error);
+        }
+    });
+
+    recognition.onresult = event => {
+        const fullTranscript =
+            getFullTranscript(event);
+
+        if (!dekoAwake) {
+            const normalizedTranscript =
+                normalizeText(fullTranscript);
+
+            const wakePhrase =
+                findWakePhrase(normalizedTranscript);
+
+            if (!wakePhrase) {
                 speechText.textContent =
+                    "Väntar på: Hej Deko";
+
+                return;
+            }
+
+            const remainder =
+                textAfterWakePhrase(fullTranscript);
+
+            wakeDeko(remainder);
+            return;
+        }
+
+        const command =
+            textAfterWakePhrase(fullTranscript);
+
+        if (command) {
+            pendingCommand = command;
+        }
+
+        if (confirmationActive) {
+            return;
+        }
+
+        if (pendingCommand) {
+            speechText.textContent = pendingCommand;
+        } else {
+            speechText.textContent = "Jag lyssnar...";
+        }
+    };
+
+    recognition.onend = () => {
+        if (!recognitionShouldRun) {
+            return;
+        }
+
+        setTimeout(() => {
+            try {
+                recognition.start();
+            } catch (error) {
+                console.log(error);
+            }
+        }, 300);
+    };
+
+    recognition.onerror = event => {
+        console.error(event.error);
+
+        if (
+            event.error === "no-speech" ||
+            event.error === "aborted"
+        ) {
+            return;
+        }
+
+        speechText.textContent =
+            "Fel: " + event.error;
+
+        setState("error");
+    };
+}
+
+
+/* STARTA DEKO */
+
+setState("neutral");
+scheduleBlink();
+scheduleLook();
