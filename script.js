@@ -292,30 +292,21 @@ if (!SpeechRecognition) {
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    speechButton.addEventListener("click", async () => {
-        try {
-            await startMicrophone();
+    speechButton.addEventListener("click", () => {
+    dekoAwake = false;
+    commandText = "";
+    wakeBuffer = "";
+    recognitionShouldRun = true;
 
-            dekoAwake = false;
-            commandText = "";
-            wakeBuffer = "";
-            recognitionShouldRun = true;
+    speechText.textContent = "Väntar på: Hej Deko";
+    setState("neutral");
 
-            speechText.textContent =
-                "Väntar på: Hej Deko";
-
-            setState("neutral");
-
-            recognition.start();
-        } catch (error) {
-            console.error(error);
-
-            speechText.textContent =
-                "Mikrofonen kunde inte startas.";
-
-            setState("error");
-        }
-    });
+    try {
+        recognition.start();
+    } catch (error) {
+        console.log(error);
+    }
+});
 
     recognition.onresult = event => {
         let newestText = "";
