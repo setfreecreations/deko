@@ -1,0 +1,52 @@
+body {
+    margin: 0;
+    background: black;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+#face {
+    height: 75vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 80px;
+}
+
+.eye {
+    width: 120px;
+    height: 120px;
+    background: white;
+    border-radius: 50%;
+    position: relative;
+    transition: all 0.25s ease;
+}
+
+.pupil {
+    width: 42px;
+    height: 42px;
+    background: black;
+    border-radius: 50%;
+    position: absolute;
+    left: 39px;
+    top: 39px;
+    transition: all 0.25s ease;
+}
+
+#controls {
+    height: 25vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+button {
+    padding: 10px 14px;
+    background: #222;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 8px;
+}
