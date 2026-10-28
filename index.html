@@ -1,1 +1,22 @@
-<!DOCTYPE html><html lang="sv"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><title>Deko</title><link rel="stylesheet" href="style.css?v=screen7"><script type="module" src="script.js?v=screen7"></script></head><body><main id="face"><div id="clockBlock"><div id="clock">--:--</div><div id="date">---</div></div><div id="cameraStatus">Kamera av</div><video id="cameraVideo" playsinline muted></video><div class="eye-zone left"><div class="eye"></div></div><div class="eye-zone right"><div class="eye"></div></div></main><section id="controls"><button data-state="neutral">Neutral</button><button data-state="listening">Lyssnar</button><button data-state="thinking">Tänker</button><button data-state="searching">Söker</button><button data-state="happy">Glad</button><button data-state="uncertain">Skeptisk</button><button data-state="surprised">Förvånad</button><button data-state="sleep">Sömn</button><button id="cameraButton">Starta kamera</button></section></body></html>
+<!DOCTYPE html><html lang="sv"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><title>Deko</title><link rel="stylesheet" href="style.css?v=screen8b"><script type="module" src="script.js?v=screen8b"></script></head><body><main id="face"><div id="clockBlock"><div id="clock">--:--</div><div id="date">---</div></div><div id="cameraStatus">Kamera av</div><video id="cameraVideo" playsinline muted></video><div id="faceCenterMarker" hidden></div><div class="eye-zone left"><div class="eye"></div></div><div class="eye-zone right"><div class="eye"></div></div></main><section id="controls"><button data-state="neutral">Neutral</button><button data-state="listening">Lyssnar</button><button data-state="thinking">Tänker</button><button data-state="searching">Söker</button><button data-state="happy">Glad</button><button data-state="uncertain">Skeptisk</button><button data-state="surprised">Förvånad</button><button data-state="sleep">Sömn</button><button id="cameraButton">Starta kamera</button><button id="devButton" type="button">⚙︎</button>
+  </section>
+  <aside id="devPanel" hidden>
+    <div class="devTitle">Deko utveckling</div>
+    <label>Horisontell rörelse <output id="outX">45%</output><input id="rangeX" type="range" min="10" max="70" value="45"></label>
+    <label>Vertikal rörelse <output id="outY">32%</output><input id="rangeY" type="range" min="10" max="60" value="32"></label>
+    <label>Följsamhet <output id="outSmooth">36%</output><input id="rangeSmooth" type="range" min="10" max="80" value="36"></label>
+    <label>Återgång <output id="outReturn">82%</output><input id="rangeReturn" type="range" min="50" max="95" value="82"></label>
+    <label>Dödzon <output id="outDead">8%</output><input id="rangeDead" type="range" min="0" max="30" value="8"></label>
+    <label>Ögonstorlek <output id="outSize">50%</output><input id="rangeSize" type="range" min="30" max="70" value="50"></label>
+    <label>Ringtjocklek <output id="outThickness">7 px</output><input id="rangeThickness" type="range" min="2" max="20" value="7"></label>
+    <label>Placering <output id="outPosition">30 / 70</output><input id="rangePosition" type="range" min="25" max="35" value="30"></label>
+    <label>Vertikal placering <output id="outVertical">50%</output><input id="rangeVertical" type="range" min="35" max="65" value="50"></label>
+    <label>Glöd <output id="outGlow">72%</output><input id="rangeGlow" type="range" min="0" max="100" value="72"></label>
+    <label class="colorLabel">Kulör <input id="eyeColor" type="color" value="#eafaff"></label>
+    <label><input id="blinkToggle" type="checkbox" checked> Automatisk blinkning</label>
+    <label>Blinkintervall <output id="outBlink">3–8 s</output><input id="rangeBlink" type="range" min="2" max="10" value="5"></label>
+    <button id="previewButton" type="button">Visa kamera</button>
+    <button id="centerMarkerButton" type="button">Visa ansiktscentrum</button>
+    <button id="copySettings" type="button">Kopiera inställningar</button>
+    <button id="resetDev" type="button">Återställ standard</button>
+  </aside></body></html>
