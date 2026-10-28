@@ -2,29 +2,21 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
   <title>Deko</title>
-  <link rel="stylesheet" href="style.css?v=screen4">
+  <link rel="stylesheet" href="style.css?v=screen5">
+  <script type="module" src="script.js?v=screen5"></script>
 </head>
 <body>
-  <main id="face" aria-label="Deko">
+  <main id="face">
     <div id="clockBlock"><div id="clock">--:--</div><div id="date">---</div></div>
-    <div id="cameraStatus" aria-live="polite">Kamera av</div>
+    <div id="cameraStatus">Kamera av</div>
     <video id="cameraVideo" playsinline muted></video>
     <div class="eye-zone left"><div class="eye"></div></div>
     <div class="eye-zone right"><div class="eye"></div></div>
   </main>
   <section id="controls">
-    <button data-state="neutral">Neutral</button>
-    <button data-state="listening">Lyssnar</button>
-    <button data-state="thinking">Tänker</button>
-    <button data-state="searching">Söker</button>
-    <button data-state="happy">Glad</button>
-    <button data-state="uncertain">Skeptisk</button>
-    <button data-state="surprised">Förvånad</button>
-    <button data-state="sleep">Sömn</button>
-    <button id="cameraButton">Starta kamera</button>
+    <button data-state="neutral">Neutral</button><button data-state="listening">Lyssnar</button><button data-state="thinking">Tänker</button><button data-state="searching">Söker</button><button data-state="happy">Glad</button><button data-state="uncertain">Skeptisk</button><button data-state="surprised">Förvånad</button><button data-state="sleep">Sömn</button><button id="cameraButton">Starta kamera</button>
   </section>
-  <script src="script.js?v=screen4"></script>
 </body>
 </html>
