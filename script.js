@@ -3,12 +3,44 @@ function setState(s){state=s;document.body.dataset.state=s}function apply(){let 
 const SpeechRecognitionClass=window.SpeechRecognition||window.webkitSpeechRecognition;
 function normaliseSpeech(t){return t.toLowerCase().replace(/[.,!?]/g,'').replace(/\s+/g,' ').trim()}
 function stripWake(t){return t.replace(/.*?hej\s+(deko|deco|dekko)[,\.\s!?]*/i,'').trim()}
+function setVoiceStatus(t){$('voiceStatus').textContent=t}
 function showSpeech(prompt,text=''){$('speechDisplay').hidden=false;$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text}
 function hideSpeech(){$('speechDisplay').hidden=true;$('speechTranscript').textContent=''}
-function finishListening(){clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';setState('neutral');if(speechText){showSpeech('',speechText);setTimeout(hideSpeech,1800)}else hideSpeech();speechText=''}
+function finishListening(){clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';setState('neutral');if(speechText){showSpeech('',speechText);setVoiceStatus('Röst: väntar på Hej Deko');setTimeout(hideSpeech,1800)}else{hideSpeech();setVoiceStatus('Röst: väntar på Hej Deko')}speechText=''}
 function armSilenceTimer(){clearTimeout(silenceTimer);silenceTimer=setTimeout(finishListening,2000)}
-function setupVoice(){if(!SpeechRecognitionClass){$('voiceButton').disabled=true;$('voiceButton').textContent='Röst stöds inte';return null}if(voiceRecognition)return voiceRecognition;const r=new SpeechRecognitionClass();r.lang='sv-SE';r.continuous=true;r.interimResults=true;r.onresult=e=>{let newest='',finalPart='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;newest+=t+' ';if(e.results[i].isFinal)finalPart+=t+' '}const norm=normaliseSpeech(newest);if(!voiceAwake){voiceBuffer=normaliseSpeech(voiceBuffer+' '+norm).slice(-120);if(/hej\s+(deko|deco|dekko)/i.test(voiceBuffer)){voiceAwake=true;speechText=stripWake(newest);voiceBuffer='';setState('listening');showSpeech('Jag lyssnar…',speechText);armSilenceTimer()}return}const clean=stripWake(finalPart.trim()||newest.trim());if(clean){if(finalPart.trim())speechText=(speechText+' '+clean).replace(/\s+/g,' ').trim();showSpeech('Jag lyssnar…',speechText||clean);armSilenceTimer()}};r.onend=()=>{if(voiceRunning)setTimeout(()=>{try{r.start()}catch{}},250)};r.onerror=e=>{if(e.error==='no-speech'||e.error==='aborted')return;console.error(e);$('voiceButton').textContent='Röstfel'};voiceRecognition=r;return r}
-function toggleVoice(){const r=setupVoice();if(!r)return;if(voiceRunning){voiceRunning=false;voiceAwake=false;clearTimeout(silenceTimer);try{r.stop()}catch{};$('voiceButton').textContent='Starta röst';hideSpeech();setState('neutral');return}voiceRunning=true;voiceAwake=false;voiceBuffer='';speechText='';$('voiceButton').textContent='Stoppa röst';try{r.start()}catch{}}
+function setupVoice(){
+ if(!SpeechRecognitionClass){$('voiceButton').disabled=true;$('voiceButton').textContent='Röst stöds inte';setVoiceStatus('SpeechRecognition saknas i webbläsaren');return null}
+ if(voiceRecognition)return voiceRecognition;
+ const r=new SpeechRecognitionClass();r.lang='sv-SE';r.continuous=false;r.interimResults=true;r.maxAlternatives=3;
+ r.onstart=()=>setVoiceStatus(voiceAwake?'Röst: lyssnar på frågan':'Röst: väntar på Hej Deko');
+ r.onspeechstart=()=>setVoiceStatus(voiceAwake?'Röst: hör frågan':'Röst: hör tal…');
+ r.onresult=e=>{
+   let chunk='',finalChunk='';
+   for(let i=e.resultIndex;i<e.results.length;i++){
+     // Testa upp till tre alternativ eftersom Safari ibland misstolkar Deko.
+     let chosen=e.results[i][0].transcript;
+     for(let a=0;a<Math.min(3,e.results[i].length);a++){
+       const alt=e.results[i][a].transcript;
+       if(/hej\s+(deko|deco|dekko)/i.test(normaliseSpeech(alt))){chosen=alt;break}
+     }
+     chunk+=chosen+' '; if(e.results[i].isFinal)finalChunk+=chosen+' ';
+   }
+   const n=normaliseSpeech(chunk);setVoiceStatus('Hörde: '+chunk.trim());
+   if(!voiceAwake){
+     voiceBuffer=normaliseSpeech(voiceBuffer+' '+n).slice(-160);
+     if(/hej\s+(deko|deco|dekko)/i.test(voiceBuffer)){
+       voiceAwake=true;voiceBuffer='';speechText=stripWake(chunk);setState('listening');showSpeech('Jag lyssnar…',speechText);setVoiceStatus('Röst: aktiverad');armSilenceTimer();
+     }
+     return;
+   }
+   const clean=stripWake((finalChunk||chunk).trim());
+   if(clean){if(finalChunk.trim())speechText=(speechText+' '+clean).replace(/\s+/g,' ').trim();showSpeech('Jag lyssnar…',speechText||clean);armSilenceTimer()}
+ };
+ r.onerror=e=>{if(e.error==='no-speech'){setVoiceStatus('Röst: inget tal – väntar');return}if(e.error==='aborted')return;setVoiceStatus('Röstfel: '+e.error);console.error(e)};
+ r.onend=()=>{if(voiceRunning)setTimeout(()=>{try{r.start()}catch(err){console.log(err)}},350)};
+ voiceRecognition=r;return r;
+}
+function toggleVoice(){const r=setupVoice();if(!r)return;if(voiceRunning){voiceRunning=false;voiceAwake=false;clearTimeout(silenceTimer);try{r.stop()}catch{};$('voiceButton').textContent='Starta röst';setVoiceStatus('Röst av');hideSpeech();setState('neutral');return}voiceRunning=true;voiceAwake=false;voiceBuffer='';speechText='';$('voiceButton').textContent='Stoppa röst';setVoiceStatus('Startar röst…');try{r.start()}catch(e){setVoiceStatus('Startfel: '+e.message)}}
 async function init(){if(det)return;let v=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');det=await FaceDetector.createFromModelPath(v,'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite');await det.setOptions({runningMode:'VIDEO',minDetectionConfidence:.5})}async function start(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});$('cameraVideo').srcObject=stream;await $('cameraVideo').play();await init();running=true;$('camera').textContent='Stoppa kamera';requestAnimationFrame(loop)}catch(e){$('cameraStatus').textContent='Fel: '+e.message}}function stop(){running=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('camera').textContent='Starta kamera';center()}
 function loop(n){if(!running)return;if(n-last>90){last=n;let r=det.detectForVideo($('cameraVideo'),performance.now());if(r.detections?.length){let b=r.detections[0].boundingBox,cx=(b.originX+b.width/2)/$('cameraVideo').videoWidth,cy=(b.originY+b.height/2)/$('cameraVideo').videoHeight,tx=Math.max(-1,Math.min(1,(.5-cx)*2)),ty=Math.max(-1,Math.min(1,(cy-.5)*2)),a=C.s/100;sx=sx*(1-a)+tx*a;sy=sy*(1-a)+ty*a;look(sx,sy);bx=cx;by=cy;$('cameraStatus').textContent='Följer ansikte';marker()}else{$('cameraStatus').textContent='Söker ansikte'}}requestAnimationFrame(loop)}function marker(){if(!$('showMarker').checked||!document.body.classList.contains('cal')){$('marker').hidden=true;return}let r=$('cameraVideo').getBoundingClientRect();$('marker').hidden=false;$('marker').style.left=r.left+(1-bx)*r.width+'px';$('marker').style.top=r.top+by*r.height+'px'}
 function showGear(){clearTimeout(gearTimer);$('gear').classList.add('show');if($('panel').hidden)gearTimer=setTimeout(()=>$('gear').classList.remove('show'),5000)}$('gear').onclick=e=>{e.stopPropagation();$('panel').hidden=!$('panel').hidden;showGear()};$('close').onclick=()=>{$('panel').hidden=true;showGear()};$('face').onpointerdown=e=>{long=false;longTimer=setTimeout(()=>{long=true;$('panel').hidden=false;showGear()},650)};$('face').onpointerup=e=>{clearTimeout(longTimer);if(long)return;let n=Date.now();if(n-lastTap<320){clearTimeout(tapTimer);lastTap=0;setState(state==='sleep'?'neutral':'sleep');showGear()}else{lastTap=n;tapTimer=setTimeout(showGear,330)}};
