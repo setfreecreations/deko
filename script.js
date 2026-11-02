@@ -6,8 +6,29 @@ function stripWake(t){return t.replace(/.*?hej\s+(deko|deco|dekko)[,\.\s!?]*/i,'
 function setVoiceStatus(t){$('voiceStatus').textContent=t}
 function showSpeech(prompt,text=''){$('speechDisplay').hidden=false;$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text}
 function hideSpeech(){$('speechDisplay').hidden=true;$('speechTranscript').textContent=''}
-function finishListening(){clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';setState('neutral');if(speechText){showSpeech('',speechText);setVoiceStatus('Röst: väntar på Hej Deko');setTimeout(hideSpeech,1800)}else{hideSpeech();setVoiceStatus('Röst: väntar på Hej Deko')}speechText=''}
-function armSilenceTimer(){clearTimeout(silenceTimer);silenceTimer=setTimeout(finishListening,2000)}
+function speak(text){
+ if(!text||!('speechSynthesis' in window)){setState('neutral');return}
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(text);u.lang='sv-SE';u.rate=.95;u.pitch=1;
+ const sv=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith('sv'));if(sv)u.voice=sv;
+ u.onend=()=>{setState('neutral');setVoiceStatus('Röst: väntar på Hej Deko');setTimeout(hideSpeech,900)};
+ u.onerror=()=>{setState('neutral');setVoiceStatus('Röst: väntar på Hej Deko')};speechSynthesis.speak(u)
+}
+function dekoReply(text){
+ const q=normaliseSpeech(text),n=new Date();
+ if(/vad är klockan|hur mycket är klockan|klockan/.test(q))return 'Klockan är '+n.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}).replace(':',' ')+'.';
+ if(/vilket datum|vad är det för datum|datum/.test(q))return 'Det är '+n.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long'})+'.';
+ if(/^(hej|hallå)|hej deko/.test(q))return 'Hej Erik.';
+ return 'Jag hörde dig, men jag kan inte svara på den frågan ännu.'
+}
+function finishListening(){
+ clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';
+ const question=speechText.trim();speechText='';
+ if(!question){hideSpeech();setState('neutral');setVoiceStatus('Röst: väntar på Hej Deko');return}
+ setState('thinking');showSpeech('Jag tänker…',question);setVoiceStatus('Röst: bearbetar frågan');
+ setTimeout(()=>{const answer=dekoReply(question);showSpeech('',answer);setVoiceStatus('Deko svarar');speak(answer)},450)
+}
+function armSilenceTimer(){clearTimeout(silenceTimer);silenceTimer=setTimeout(finishListening,1800)}
 function setupVoice(){
  if(!SpeechRecognitionClass){$('voiceButton').disabled=true;$('voiceButton').textContent='Röst stöds inte';setVoiceStatus('SpeechRecognition saknas i webbläsaren');return null}
  if(voiceRecognition)return voiceRecognition;
