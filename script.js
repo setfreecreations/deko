@@ -4,8 +4,8 @@ const SpeechRecognitionClass=window.SpeechRecognition||window.webkitSpeechRecogn
 function normaliseSpeech(t){return t.toLowerCase().replace(/[.,!?]/g,'').replace(/\s+/g,' ').trim()}
 function stripWake(t){return t.replace(/.*?hej\s+(deko|deco|dekko)[,\.\s!?]*/i,'').trim()}
 function setVoiceStatus(t){$('voiceStatus').textContent=t}
-function showSpeech(prompt,text=''){$('speechDisplay').hidden=false;$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text}
-function hideSpeech(){$('speechDisplay').hidden=true;$('speechTranscript').textContent=''}
+function showSpeech(prompt,text=''){const d=$('speechDisplay');d.hidden=false;$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text;if(text&&!d.classList.contains('ticker-active')){d.classList.add('ticker-active')}}
+function hideSpeech(){const d=$('speechDisplay');d.hidden=true;d.classList.remove('ticker-active');$('speechTranscript').textContent='';$('speechPrompt').textContent='Jag lyssnar…'}
 function finishListening(){clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';setState('neutral');if(speechText){showSpeech('',speechText);setVoiceStatus('Röst: väntar på Hej Deko');setTimeout(hideSpeech,1800)}else{hideSpeech();setVoiceStatus('Röst: väntar på Hej Deko')}speechText=''}
 function armSilenceTimer(){clearTimeout(silenceTimer);silenceTimer=setTimeout(finishListening,2000)}
 function setupVoice(){
