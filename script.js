@@ -4,8 +4,9 @@ const SpeechRecognitionClass=window.SpeechRecognition||window.webkitSpeechRecogn
 function normaliseSpeech(t){return t.toLowerCase().replace(/[.,!?]/g,'').replace(/\s+/g,' ').trim()}
 function stripWake(t){return t.replace(/.*?hej\s+(deko|deco|dekko)[,\.\s!?]*/i,'').trim()}
 function setVoiceStatus(t){$('voiceStatus').textContent=t}
-function showSpeech(prompt,text=''){const d=$('speechDisplay');d.hidden=false;$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text;if(text&&!d.classList.contains('ticker-active')){d.classList.add('ticker-active')}}
-function hideSpeech(){const d=$('speechDisplay');d.hidden=true;d.classList.remove('ticker-active');$('speechTranscript').textContent='';$('speechPrompt').textContent='Jag lyssnar…'}
+function showSpeech(prompt,text=''){const d=$('speechDisplay');d.hidden=false;d.classList.remove('heard-only');$('speechPrompt').textContent=prompt;$('speechTranscript').textContent=text;if(text&&!d.classList.contains('ticker-active')){d.classList.add('ticker-active')}}
+function showHeardText(text){const d=$('speechDisplay');d.hidden=false;d.classList.add('heard-only');$('speechTranscript').textContent=text;if(text&&!d.classList.contains('ticker-active'))d.classList.add('ticker-active')}
+function hideSpeech(){const d=$('speechDisplay');d.hidden=true;d.classList.remove('ticker-active','heard-only');$('speechTranscript').textContent='';$('speechPrompt').textContent='Jag lyssnar…'}
 function finishListening(){clearTimeout(silenceTimer);voiceAwake=false;voiceBuffer='';setState('neutral');if(speechText){showSpeech('',speechText);setVoiceStatus('Röst: väntar på Hej Deko');setTimeout(hideSpeech,1800)}else{hideSpeech();setVoiceStatus('Röst: väntar på Hej Deko')}speechText=''}
 function armSilenceTimer(){clearTimeout(silenceTimer);silenceTimer=setTimeout(finishListening,2000)}
 function setupVoice(){
@@ -25,7 +26,7 @@ function setupVoice(){
      }
      chunk+=chosen+' '; if(e.results[i].isFinal)finalChunk+=chosen+' ';
    }
-   const n=normaliseSpeech(chunk);setVoiceStatus('Hörde: '+chunk.trim());
+   const n=normaliseSpeech(chunk);setVoiceStatus('Hörde: '+chunk.trim());if(!voiceAwake&&chunk.trim())showHeardText(chunk.trim());
    if(!voiceAwake){
      voiceBuffer=normaliseSpeech(voiceBuffer+' '+n).slice(-160);
      if(/hej\s+(deko|deco|dekko)/i.test(voiceBuffer)){

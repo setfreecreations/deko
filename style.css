@@ -59,3 +59,8 @@ body[data-state="thinking"]{
 #speechTranscript{display:inline-block;min-width:max-content;padding-left:100vw;font-size:clamp(12px,2.7vh,18px);line-height:1.2;opacity:.88;white-space:nowrap;will-change:transform}
 #speechDisplay.ticker-active #speechTranscript{animation:dekoSpeechTicker 10s linear infinite}
 @keyframes dekoSpeechTicker{from{transform:translateX(0)}to{transform:translateX(calc(-100% - 100vw))}}
+
+/* v10.4: robust huvudskärms-feedback för tal */
+#speechDisplay.heard-only #speechPrompt{display:none}
+#speechDisplay.heard-only{bottom:3.8vh;height:clamp(22px,4vh,30px)}
+#speechDisplay.heard-only #speechTicker{top:0;bottom:auto;height:100%}
